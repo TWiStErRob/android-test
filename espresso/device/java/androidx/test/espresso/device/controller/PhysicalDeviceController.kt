@@ -26,6 +26,9 @@ import androidx.test.espresso.device.common.executeShellCommand
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.platform.device.DeviceController
 import androidx.test.platform.device.UnsupportedDeviceOperationException
+import androidx.test.espresso.device.common.getMapOfDeviceStateNamesToIdentifiers
+import androidx.test.espresso.device.common.executeShellCommand
+import androidx.test.espresso.device.controller.DeviceMode
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -37,9 +40,37 @@ import java.util.concurrent.TimeUnit
 @RestrictTo(RestrictTo.Scope.LIBRARY)
 class PhysicalDeviceController() : DeviceController {
   override fun setDeviceMode(deviceMode: Int) {
-    throw UnsupportedDeviceOperationException(
-      "Setting a device mode is not supported on physical devices."
-    )
+    val deviceIdentifiersMap = getMapOfDeviceStateNamesToIdentifiers()
+    if (deviceMode == DeviceMode.FLAT.getMode()) {
+      if (deviceIdentifiersMap.containsKey("OPENED")) {
+        setDeviceState(deviceIdentifiersMap.get("OPENED")!!)
+      } else {
+        throw UnsupportedDeviceOperationException(
+          "Flat mode is not supported on this device."
+        )
+      }
+    } else if (deviceMode == DeviceMode.TABLETOP.getMode() || deviceMode == DeviceMode.BOOK.getMode()) {
+      if (deviceIdentifiersMap.containsKey("HALF_OPENED")) {
+        setDeviceState(deviceIdentifiersMap.get("HALF_OPENED")!!)
+      } else {
+        val deviceModeString = if (deviceMode == DeviceMode.TABLETOP.getMode()) "Tabletop" else "Book"
+        throw UnsupportedDeviceOperationException(
+          "${deviceModeString} mode is not supported on this device."
+        )
+      }
+    } else if (deviceMode == DeviceMode.CLOSED.getMode()) {
+      if (deviceIdentifiersMap.containsKey("CLOSED")) {
+        setDeviceState(deviceIdentifiersMap.get("CLOSED")!!)
+      } else {
+        throw UnsupportedDeviceOperationException(
+          "Closed mode is not supported on this device."
+        )
+      }
+    } else {
+      throw UnsupportedDeviceOperationException(
+          "The requested device mode is not supported."
+        )
+    }
   }
 
   override fun setScreenOrientation(screenOrientation: Int) {
@@ -78,5 +109,9 @@ class PhysicalDeviceController() : DeviceController {
         "Device could not be set to the requested screen orientation."
       )
     }
+  }
+
+  private fun setDeviceState(deviceIdentifier: String) {
+    executeShellCommand("cmd device_state state ${deviceIdentifier}")
   }
 }
